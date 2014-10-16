@@ -245,7 +245,7 @@ def _excepthook(exc_type, exc_val, exc_tb):
 
         dump_failed(os.path.join(_db_path, 'RUNS', _run, 'FAILED'))
         _run = None
-    _saved_except_hook(exc_type, exc_val, exc_tb)
+    _saved_excepthook(exc_type, exc_val, exc_tb)
 
 _saved_excepthook, sys.excepthook = sys.excepthook, _excepthook
 

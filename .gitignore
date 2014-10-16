@@ -1,0 +1,5 @@
+build/
+dist/
+simdb.egg-info/
+
+*.pyc

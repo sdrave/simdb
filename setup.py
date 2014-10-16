@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='simdb',
-    version='0.1.dev1',
+    version='0.1.dev2',
     packages=find_packages(),
     description='A simple Python package for management of simulation datasets',
     #long_description=long_description,
@@ -23,5 +23,5 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='simulation data numerics reproducibility',
-    install_requires = ['pyyaml', 'sh'],
+    install_requires = ['pyyaml', 'numpy', 'sh'],
 )

@@ -32,8 +32,10 @@ import socket
 import sys
 import time
 import traceback
-import yaml
+import warnings
 import __main__
+
+import yaml
 
 from simdb.db import DataLoader
 
@@ -82,6 +84,18 @@ def _initialize():
         raise RuntimeError('SIMDB_PATH is not set!')
 
     try:
+        git_repos = os.environ['SIMDB_GIT_REPOS']
+    except KeyError:
+        git_repos = ''
+        warnings.warn('No git repositories specified via SIMDB_GIT_REPOS')
+
+    if git_repos:
+        git_repos = git_repos.split(':')
+        git_info = {p.rstrip('/').split('/')[-1]: _git_info(p) for p in git_repos}
+    else:
+        git_info = None
+
+    try:
         script = os.path.abspath(__main__.__file__)
     except AttributeError:
         script = 'from console'
@@ -92,7 +106,6 @@ def _initialize():
     argv = sys.argv
 
     host = os.uname()
-    status = None #status_report()
     started = datetime.datetime.now()
 
     if not os.path.exists(os.path.join(db_path, 'RUNS')):
@@ -102,7 +115,7 @@ def _initialize():
     yaml.dump(dict(script=script,
                    argv=argv,
                    host=host,
-                   status=status,
+                   git=git_info,
                    started=started),
               open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'w'),
               allow_unicode=True)
@@ -227,6 +240,19 @@ def _make_uid(path, prefix=''):
         else:
             break
     return uid
+
+
+def _git_info(path):
+    from sh import git
+    git = git.bake('--no-pager')
+    rev_parse = getattr(git, 'rev-parse')
+    R = {'branch':    rev_parse('--abbrev-ref', 'HEAD', _cwd=path).strip(),
+         'revision':  rev_parse('HEAD', _cwd=path).strip(),
+         'untracked': getattr(git, 'ls-files')('--others', '--exclude-standard', _cwd=path).strip(),
+         'status':    git.status('-s', _cwd=path).strip(),
+         'diff':      git.diff(_cwd=path).strip()}
+    R['clean'] = len(R['diff']) == 0
+    return R
 
 
 def _excepthook(exc_type, exc_val, exc_tb):

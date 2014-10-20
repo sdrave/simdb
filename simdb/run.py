@@ -248,7 +248,7 @@ def _git_info(path):
     rev_parse = getattr(git, 'rev-parse')
     R = {'branch':    rev_parse('--abbrev-ref', 'HEAD', _cwd=path).strip(),
          'revision':  rev_parse('HEAD', _cwd=path).strip(),
-         'untracked': getattr(git, 'ls-files')('--others', '--exclude-standard', _cwd=path).strip(),
+         'untracked': getattr(git, 'ls-files')('--others', '--exclude-standard', '--directory', _cwd=path).strip(),
          'status':    git.status('-s', _cwd=path).strip(),
          'diff':      git.diff(_cwd=path).strip()}
     R['clean'] = len(R['diff']) == 0

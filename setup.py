@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='simdb',
-    version='0.1.dev2',
+    version='0.1.dev3',
     packages=find_packages(),
     description='A simple Python package for management of simulation datasets',
     #long_description=long_description,

@@ -17,7 +17,6 @@ setup(
         'Topic :: Scientific/Engineering',
         'Topic :: Software Development :: Libraries',
         'Topic :: Database',
-        'Topic :: Software Development :: Build Tools',
         'License :: OSI Approved :: BSD License',
         'Programming Language :: Python :: 2',
         'Programming Language :: Python :: 2.7',

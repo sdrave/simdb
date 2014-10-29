@@ -126,28 +126,24 @@ def _initialize():
     _db_path = db_path
 
 
-def new_dataset(experiment, kind, **params):
+def new_dataset(experiment, **params):
     global _current_dataset, _current_dataset_data
     assert ' ' not in experiment and '-' not in experiment
-    assert ' ' not in kind and '-' not in kind
 
     if not _run:
         _initialize()
     if _current_dataset:
         _write_data(successful=True)
 
-    prefix = experiment + '-' + kind
-
     if not os.path.exists(os.path.join(_db_path, 'DATA')):
         os.mkdir(os.path.join(_db_path, 'DATA'))
 
-    uid = _make_uid(os.path.join(_db_path, 'DATA'), prefix)
+    uid = _make_uid(os.path.join(_db_path, 'DATA'), experiment)
     _current_dataset = os.path.join(_db_path, 'DATA', uid)
     _current_dataset_data = {}
 
     os.mkdir(_current_dataset)
     yaml.dump({'experiment': experiment,
-               'kind': kind,
                'started': datetime.datetime.now(),
                'parameters': params,
                'comment': '',

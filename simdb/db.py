@@ -154,8 +154,7 @@ class Dataset(object):
         self._update_info()
 
     def _update_info(self):
-        data = {k: getattr(self, k) for k in ['experiment', 'kind', 'started',
-                                              'comment', 'protected']}
+        data = {k: getattr(self, k) for k in ['experiment', 'started', 'comment', 'protected']}
         data['parameters'] = self.p.dict
         data['tags'] = list(sorted(self.tags))
 
@@ -252,8 +251,7 @@ class SimulationDatabase(object):
         if not db_path:
             db_path = os.environ['SIMDB_PATH']
         self.db_path = db_path
-        combinations = sorted(set([tuple(s.split('-')[:2]) for s in os.listdir(os.path.join(db_path, 'DATA'))]))
-        self.experiments = {k: [v2[1] for v2 in v] for k, v in itertools.groupby(combinations, lambda x:x[0])}
+        self.experiments = sorted(set(s.split('-')[0] for s in os.listdir(os.path.join(db_path, 'DATA'))))
 
     def select(self, pattern, *args, **kwargs):
         pattern = '*' + pattern + '*'
@@ -290,11 +288,7 @@ class SimulationDatabase(object):
         print(str(self))
 
     def __str__(self):
-        maxlen = max(map(len, self.experiments.keys())) + 1
-        out = ''
-        for k, v in self.experiments.iteritems():
-            out += ('{:{maxlen}} {}\n'.format(k + ':', v, maxlen=maxlen))
-        return out[:-1]
+        return str(self.experiments)
 
     def __repr__(self):
         return "SimulationDatabase('{}')".format(self.db_path)

@@ -116,7 +116,8 @@ def _initialize():
                    argv=argv,
                    host=host,
                    git=git_info,
-                   started=started),
+                   started=started,
+                   environment=dict(os.environ)),
               open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'w'),
               allow_unicode=True)
     with open(os.path.join(db_path, 'RUNS', uid, 'SCRIPT'), 'w') as f:

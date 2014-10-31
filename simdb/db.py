@@ -24,7 +24,7 @@
 
 from __future__ import absolute_import, division, print_function
 
-from cPickle import load
+from cPickle import load, UnpicklingError
 
 import functools
 import glob
@@ -113,23 +113,27 @@ class Dataset(object):
         if hasattr(self, '_d'):
             return self._d
 
-        class MyLoader(yaml.CLoader):
-            pass
+        try:
+            self._data = load(open(os.path.join(self.path, 'DATA')))
+        except (UnpicklingError, ImportError):
+            # legacy code for old file format - to be removed
+            class MyLoader(yaml.CLoader):
+                pass
 
-        MyLoader.add_constructor(u'!DataLoader',
-                                 functools.partial(data_loader_constructor, path=self.path))
-        self._data = yaml.load(open(os.path.join(self.path, 'DATA')), Loader=MyLoader)
+            MyLoader.add_constructor(u'!DataLoader',
+                                     functools.partial(data_loader_constructor, path=self.path))
+            self._data = yaml.load(open(os.path.join(self.path, 'DATA')), Loader=MyLoader)
 
-        def try_array(x):
-            if isinstance(x, list):
-                a = np.array(x)
-                if a.dtype == np.object:
-                    return x
+            def try_array(x):
+                if isinstance(x, list):
+                    a = np.array(x)
+                    if a.dtype == np.object:
+                        return x
+                    else:
+                        return a
                 else:
-                    return a
-            else:
-                return x
-        self._data = {k: try_array(v) for k, v in self._data.iteritems()}
+                    return x
+            self._data = {k: try_array(v) for k, v in self._data.iteritems()}
 
         self._d = self.DataDict()
         self._d.__dict__ = self._data

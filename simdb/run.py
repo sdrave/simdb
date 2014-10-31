@@ -158,7 +158,7 @@ def new_dataset(experiment, **params):
 
 def add_values(**new_data):
     _check_dataset_keys(new_data.keys())
-    _current_dataset_data.update(new_data)
+    _current_dataset_data.update({k: _to_list(v) for k, v in new_data.items()})
 
 
 def append_values(**new_data):
@@ -166,6 +166,7 @@ def append_values(**new_data):
         raise ValueError('no data set created')
     data = _current_dataset_data
     for k, v in new_data.iteritems():
+        v = _to_list(v)
         if k not in data:
             data[k] = [v]
         elif not isinstance(data[k], list):
@@ -210,9 +211,52 @@ def append_data(**new_data):
 
 def _write_data(successful):
     assert _current_dataset
-    yaml.dump(_current_dataset_data,
-              open(os.path.join(_current_dataset, 'DATA'), 'w'),
-              width=10000)
+
+    for k, v in _current_dataset_data.iteritems():
+        if isinstance(v, list):
+            a = np.array(v)
+            if not a.dtype == np.object:
+                _current_dataset_data[k] = a
+
+    dump(_current_dataset_data,
+         open(os.path.join(_current_dataset, 'DATA'), 'w'),
+         protocol=-1)
+
+    def get_metadata(v):
+        if isinstance(v, np.ndarray):
+            return {'type': 'numpy.ndarray',
+                    'shape': list(v.shape),
+                    'dtype': str(v.dtype)}
+        elif isinstance(v, list):
+            info = {'len': len(v),
+                    'total_elements': 0,
+                    'max_depth': 0,
+                    'max_len': len(v),
+                    'element_types': set()}
+            def process_list(l, depth):
+                for x in l:
+                    if isinstance(x, list):
+                        info['max_len'] = max(info['max_len'], len(x))
+                        info['max_depth'] = max(info['max_depth'], depth + 1)
+                        process_list(x, depth+1)
+                    else:
+                        info['total_elements'] += 1
+                        info['element_types'].add(type(x).__name__)
+            process_list(v, 0)
+            info['element_types'] = sorted(info['element_types'])
+            if info['max_depth']:
+                info['type'] = 'list of lists'
+                return info
+            else:
+                return {'type': 'list',
+                        'len': len(v),
+                        'element_types': info['element_types']}
+        else:
+            return type(v).__name__
+
+    yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.iteritems()},
+              open(os.path.join(_current_dataset, 'INDEX'), 'w'))
+
     if successful:
         yaml.dump(datetime.datetime.now(),
                   open(os.path.join(_current_dataset, 'FINISHED'), 'w'))
@@ -250,6 +294,15 @@ def _git_info(path):
          'diff':      git.diff(_cwd=path).strip()}
     R['clean'] = len(R['diff']) == 0
     return R
+
+
+def _to_list(v):
+    if isinstance(v, np.ndarray):
+        return v.tolist()
+    elif isinstance(v, (tuple, list)):
+        return [_to_list(x) for x in v]
+    else:
+        return v
 
 
 def _excepthook(exc_type, exc_val, exc_tb):

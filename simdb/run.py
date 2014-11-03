@@ -42,6 +42,9 @@ import yaml
 from simdb.db import DataLoader
 
 
+STRIP_FROM_ENV = ['PS1',]
+
+
 # Customize YAML serialization
 import numpy as np
 def ndarray_representer(dumper, data):
@@ -117,12 +120,16 @@ def _initialize():
         os.mkdir(os.path.join(db_path, 'RUNS'))
     uid = _make_uid(os.path.join(db_path, 'RUNS'))
     os.mkdir(os.path.join(db_path, 'RUNS', uid))
+    env = dict(os.environ)
+    for kk in STRIP_FROM_ENV:
+        if env.has_key(kk):
+            env.pop(kk)
     yaml.dump(dict(script=script,
                    argv=argv,
                    host=host,
                    git=git_info,
                    started=started,
-                   environment=dict(os.environ)),
+                   environment=env),
               open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'w'),
               allow_unicode=True)
     with open(os.path.join(db_path, 'RUNS', uid, 'SCRIPT'), 'w') as f:

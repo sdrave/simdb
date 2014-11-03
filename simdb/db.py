@@ -24,8 +24,9 @@
 
 from __future__ import absolute_import, division, print_function
 
-from cPickle import load, UnpicklingError
+from cPickle import dumps, load, UnpicklingError
 
+import pprint
 import functools
 import glob
 import itertools
@@ -234,6 +235,50 @@ class DatasetCollection(object):
         for ds in self.datasets:
             ds.delete()
 
+    def duplicates(self, params=None):
+        if params:
+            params = sorted(params)
+            keyfunc = lambda ds: (ds.experiment,
+                                  list(dumps(ds.p[k], protocol=-1) for k in params))
+            groups = itertools.groupby(sorted((ds for ds in self.datasets if set(ds.p.dict.keys()) >= set(params)),
+                                              key=keyfunc),
+                                       key=keyfunc)
+        else:
+            keyfunc = lambda ds: (ds.experiment,
+                                  list(sorted((k, dumps(v, protocol=-1)) for k, v in ds.p.dict.iteritems())))
+            groups = itertools.groupby(sorted(self.datasets, key=keyfunc), key=keyfunc)
+
+        def get_duplicates(groups):
+            for k, v in groups:
+                datasets = list(v)
+                if len(datasets) > 1:
+                    p = datasets[0].p.dict
+                    info = {'experiment': datasets[0].experiment,
+                            'params': p if not params else {k: p[k] for k in params}}
+                    yield [info, datasets]
+
+        class DuplicatesList(list):
+            def __str__(self):
+                formatter = lambda i, ds: ('experiment: ' + i['experiment'] + '\n' +
+                                           'params:     ' +
+                                           '\n'.join(textwrap.wrap(', '.join('{}={}'.format(k, v)
+                                                                   for k, v in sorted(i['params'].iteritems())),
+                                                                   initial_indent='',
+                                                                   subsequent_indent=' ' * len('experiment: '),
+                                                                   width=100)) + '\n' +
+                                           'count:      ' + str(len(ds)) + '\n')
+                return '\n'.join(formatter(i, ds) for i, ds in self)
+
+            def delete_old(self):
+                for i, datasets in self:
+                    for ds in datasets[:-1]:
+                        ds.delete()
+
+            __repr__ = __str__
+
+        return DuplicatesList(get_duplicates(groups))
+
+
     def __getitem__(self, n):
         return self.datasets[n]
 
@@ -287,6 +332,9 @@ class SimulationDatabase(object):
         print('Deleting:')
         ds.dir()
         ds.delete()
+
+    def duplicates(self, params=None):
+        return self.select('*').duplicates(params)
 
     def dir(self):
         print(str(self))

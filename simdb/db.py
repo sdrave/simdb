@@ -205,7 +205,10 @@ class DatasetCollection(object):
         print(str(self))
 
     def select(self, *args, **kwargs):
+        failed = kwargs.pop('failed', None)
         def selector(ds):
+            if failed is not None and ds.failed != failed:
+                return False
             try:
                 for k, v in kwargs.iteritems():
                     if ds.p.dict[k] != v:

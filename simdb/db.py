@@ -116,6 +116,13 @@ class Dataset(object):
 
         try:
             self._data = load(open(os.path.join(self.path, 'DATA')))
+            for v in self._data.itervalues():
+                if isinstance(v, DataLoader):
+                    v.filename = os.path.join(self.path, v.filename)
+                elif isinstance(v, list):
+                    for vv in v:
+                        if isinstance(vv, DataLoader):
+                            vv.filename = os.path.join(self.path, vv.filename)
         except (UnpicklingError, ImportError):
             # legacy code for old file format - to be removed
             class MyLoader(yaml.CLoader):

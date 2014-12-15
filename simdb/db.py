@@ -24,18 +24,14 @@
 
 from __future__ import absolute_import, division, print_function
 
-from cPickle import dumps, load, UnpicklingError
+from cPickle import dumps, load
 
-import pprint
-import functools
 import glob
 import itertools
 import os
 import shutil
 import textwrap
 import yaml
-
-import numpy as np
 
 
 class DataLoader(object):
@@ -66,7 +62,6 @@ class Dataset(object):
 
         def __repr__(self):
             return ', '.join(str(k) + ': ' + str(v) for k, v in sorted(self.dict.iteritems()))
-
 
     def __init__(self, path):
         self.path = path
@@ -141,7 +136,7 @@ class Dataset(object):
 
     def __setattr__(self, k, v):
         if not hasattr(self, '_locked'):
-            super(Dataset,self).__setattr__(k, v)
+            super(Dataset, self).__setattr__(k, v)
         else:
             if getattr(self, '_deleted', False):
                 raise ValueError('Dataset has been deleted')
@@ -157,9 +152,9 @@ class Dataset(object):
 
     def __str__(self):
         params = '\n'.join(textwrap.wrap(', '.join('{}={}'.format(k, v) for k, v in sorted(self.p.dict.iteritems())),
-                                          initial_indent=' '*10, subsequent_indent=' '*10, width=100))
+                                         initial_indent=' '*10, subsequent_indent=' '*10, width=100))
         s = '{} {}'.format(self.name,
-                            '✓' if self.finished else '✗' if self.failed else '?')
+                           '✓' if self.finished else '✗' if self.failed else '?')
         if self._deleted:
             s += ' ***DELETED***'
         s += '\n' + params
@@ -179,6 +174,7 @@ class DatasetCollection(object):
 
     def select(self, *args, **kwargs):
         failed = kwargs.pop('failed', None)
+
         def selector(ds):
             if failed is not None and ds.failed != failed:
                 return False
@@ -253,7 +249,6 @@ class DatasetCollection(object):
             __repr__ = __str__
 
         return DuplicatesList(get_duplicates(groups))
-
 
     def __getitem__(self, n):
         return self.datasets[n]

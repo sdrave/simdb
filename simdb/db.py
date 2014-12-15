@@ -47,20 +47,6 @@ class DataLoader(object):
         return load(open(self.filename))
 
 
-def data_loader_representer(dumper, data):
-    return dumper.represent_scalar(u'!DataLoader', data.filename)
-
-
-def data_loader_constructor(loader, node, path=None):
-    filename = loader.construct_scalar(node)
-    if path is not None:
-        filename = os.path.join(path, filename)
-    return DataLoader(filename)
-
-
-yaml.add_representer(DataLoader, data_loader_representer)
-
-
 class Dataset(object):
 
     class DataDict(object):
@@ -114,34 +100,14 @@ class Dataset(object):
         if hasattr(self, '_d'):
             return self._d
 
-        try:
-            self._data = load(open(os.path.join(self.path, 'DATA')))
-            for v in self._data.itervalues():
-                if isinstance(v, DataLoader):
-                    v.filename = os.path.join(self.path, v.filename)
-                elif isinstance(v, list):
-                    for vv in v:
-                        if isinstance(vv, DataLoader):
-                            vv.filename = os.path.join(self.path, vv.filename)
-        except (UnpicklingError, ImportError):
-            # legacy code for old file format - to be removed
-            class MyLoader(yaml.CLoader):
-                pass
-
-            MyLoader.add_constructor(u'!DataLoader',
-                                     functools.partial(data_loader_constructor, path=self.path))
-            self._data = yaml.load(open(os.path.join(self.path, 'DATA')), Loader=MyLoader)
-
-            def try_array(x):
-                if isinstance(x, list):
-                    a = np.array(x)
-                    if a.dtype == np.object:
-                        return x
-                    else:
-                        return a
-                else:
-                    return x
-            self._data = {k: try_array(v) for k, v in self._data.iteritems()}
+        self._data = load(open(os.path.join(self.path, 'DATA')))
+        for v in self._data.itervalues():
+            if isinstance(v, DataLoader):
+                v.filename = os.path.join(self.path, v.filename)
+            elif isinstance(v, list):
+                for vv in v:
+                    if isinstance(vv, DataLoader):
+                        vv.filename = os.path.join(self.path, vv.filename)
 
         self._d = self.DataDict()
         self._d.__dict__ = self._data

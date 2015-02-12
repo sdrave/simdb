@@ -176,7 +176,7 @@ class DatasetCollection(object):
         failed = kwargs.pop('failed', None)
 
         def selector(ds):
-            if failed is not None and ds.failed != failed:
+            if failed is not None and bool(ds.failed) != failed:
                 return False
             try:
                 for k, v in kwargs.iteritems():

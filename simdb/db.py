@@ -28,10 +28,13 @@ from cPickle import dumps, load
 
 import glob
 import itertools
+import logging
 import os
 import shutil
 import textwrap
 import yaml
+
+logger = logging.getLogger('simdb')
 
 
 class DataLoader(object):
@@ -94,6 +97,12 @@ class Dataset(object):
             raise ValueError('Dataset has been deleted')
         if hasattr(self, '_d'):
             return self._d
+
+        if not self.finished:
+            if self.failed:
+                logger.warn('Loading data of failed dataset {}.'.format(self.name))
+            else:
+                raise ValueError('Cannot load data of not finished dataset {}.'.format(self.name))
 
         self._data = load(open(os.path.join(self.path, 'DATA')))
         for v in self._data.itervalues():

@@ -74,6 +74,7 @@ _db_path = None
 _run = None
 _current_dataset = None
 _current_dataset_data = None
+_current_dataset_auto_flush = False
 
 
 def _initialize():
@@ -126,8 +127,8 @@ def _initialize():
     _db_path = db_path
 
 
-def new_dataset(experiment, **params):
-    global _current_dataset, _current_dataset_data
+def new_dataset(experiment, auto_flush=False, **params):
+    global _current_dataset, _current_dataset_data, _current_dataset_auto_flush
     assert ' ' not in experiment and '-' not in experiment
 
     if not _run:
@@ -141,6 +142,7 @@ def new_dataset(experiment, **params):
     uid = _make_uid(os.path.join(_db_path, 'DATA'), experiment)
     _current_dataset = os.path.join(_db_path, 'DATA', uid)
     _current_dataset_data = {}
+    _current_dataset_auto_flush = auto_flush
 
     os.mkdir(_current_dataset)
     yaml.dump({'experiment': experiment,
@@ -159,6 +161,8 @@ def new_dataset(experiment, **params):
 def add_values(**new_data):
     _check_dataset_keys(new_data.keys())
     _current_dataset_data.update({k: _to_list(v) for k, v in new_data.items()})
+    if _current_dataset_auto_flush:
+        flush()
 
 
 def append_values(**new_data):
@@ -173,6 +177,8 @@ def append_values(**new_data):
             data[k] = [data[k], v]
         else:
             data[k].append(v)
+    if _current_dataset_auto_flush:
+        flush()
 
 
 def add_data(**new_data):
@@ -207,6 +213,12 @@ def append_data(**new_data):
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}
     append_values(**new_data)
+
+
+def flush():
+    if not _current_dataset:
+        raise ValueError('no data set created')
+    _write_data(False)
 
 
 def _write_data(successful):

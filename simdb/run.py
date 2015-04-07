@@ -275,7 +275,8 @@ def _make_uid(path, prefix=''):
         prefix = prefix + '-'
     d = datetime.datetime.now()
     while True:
-        uid = prefix + datetime.datetime.now().isoformat() + '-' + socket.gethostname()
+        uid = prefix + datetime.datetime.now().isoformat().replace(':', '-') + '-' + socket.gethostname()
+        # some filesystems do not allow ':' in filenames ..
         if os.path.lexists(os.path.join(path, uid)):
             d = d + datetime.timedelta(microseconds=1)
         else:

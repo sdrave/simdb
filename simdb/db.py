@@ -102,7 +102,10 @@ class Dataset(object):
             if self.failed:
                 logger.warn('Loading data of failed dataset {}.'.format(self.name))
             else:
-                raise ValueError('Cannot load data of not finished dataset {}.'.format(self.name))
+                if os.path.exists(os.path.join(self.path, 'DATA')):
+                    logger.warn('Loading data of unfinished dataset {}.'.format(self.name))
+                else:
+                    raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
 
         self._data = load(open(os.path.join(self.path, 'DATA')))
         for v in self._data.itervalues():

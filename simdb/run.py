@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright (c) 2014, Stephan Rave
+# Copyright (c) 2014, 2015, Stephan Rave
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without

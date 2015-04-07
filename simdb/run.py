@@ -224,13 +224,16 @@ def flush():
 def _write_data(successful):
     assert _current_dataset
 
-    for k, v in _current_dataset_data.iteritems():
+    def process_data(v):
         if isinstance(v, list):
             a = np.array(v)
             if not a.dtype == np.object:
-                _current_dataset_data[k] = a
+                return a
+        return v
 
-    dump(_current_dataset_data,
+    data = {k: process_data(v) for k, v in _current_dataset_data.iteritems()}
+
+    dump(data,
          open(os.path.join(_current_dataset, 'DATA'), 'w'),
          protocol=-1)
 

@@ -207,8 +207,8 @@ def append_data(**new_data):
             count = 1
         else:
             count = len(data[k])
-        with open(filename, 'w'):
-            dump(v, filename)
+        filename = 'DATA.' + k + '.' + str(count)
+        dump(v, open(os.path.join(_current_dataset, filename), 'w'))
         return filename
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}

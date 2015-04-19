@@ -25,9 +25,11 @@
 from __future__ import absolute_import, division, print_function
 
 import atexit
+from collections import defaultdict
 from cPickle import dump
 import datetime
 import os
+from itertools import izip_longest
 import socket
 import sys
 import time
@@ -74,6 +76,8 @@ _db_path = None
 _run = None
 _current_dataset = None
 _current_dataset_data = None
+_current_dataset_start_times = None
+_current_dataset_stop_times = None
 _current_dataset_auto_flush = False
 
 
@@ -128,7 +132,8 @@ def _initialize():
 
 
 def new_dataset(experiment, auto_flush=False, **params):
-    global _current_dataset, _current_dataset_data, _current_dataset_auto_flush
+    global _current_dataset, _current_dataset_data, _current_dataset_start_times
+    global _current_dataset_stop_times, _current_dataset_auto_flush
     assert ' ' not in experiment and '-' not in experiment
 
     if not _run:
@@ -142,6 +147,8 @@ def new_dataset(experiment, auto_flush=False, **params):
     uid = _make_uid(os.path.join(_db_path, 'DATA'), experiment)
     _current_dataset = os.path.join(_db_path, 'DATA', uid)
     _current_dataset_data = {}
+    _current_dataset_start_times = defaultdict(list)
+    _current_dataset_stop_times = defaultdict(list)
     _current_dataset_auto_flush = auto_flush
 
     os.mkdir(_current_dataset)
@@ -215,6 +222,32 @@ def append_data(**new_data):
     append_values(**new_data)
 
 
+def add_start_times(*keys):
+    now = time.time()
+    if not _current_dataset:
+        raise ValueError('no data set created')
+    for key in keys:
+        start = _current_dataset_start_times[key]
+        stop = _current_dataset_stop_times[key]
+        assert len(stop) <= len(start) <= len(stop) + 1
+        if len(start) > len(stop):
+            raise ValueError('timer for {} already started'.format(key))
+        start.append(now)
+
+
+def add_stop_times(*keys):
+    now = time.time()
+    if not _current_dataset:
+        raise ValueError('no data set created')
+    for key in keys:
+        start = _current_dataset_start_times[key]
+        stop = _current_dataset_stop_times[key]
+        assert len(stop) <= len(start) <= len(stop) + 1
+        if len(start) == len(stop):
+            raise ValueError('timer for {} not started'.format(key))
+        stop.append(now)
+
+
 def flush():
     if not _current_dataset:
         raise ValueError('no data set created')
@@ -271,6 +304,14 @@ def _write_data(successful):
 
     yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.iteritems()},
               open(os.path.join(_current_dataset, 'INDEX'), 'w'))
+
+    durations = {k: [stop - start for start, stop in izip_longest(v, _current_dataset_stop_times[k], fillvalue=0)]
+                 for k, v in _current_dataset_start_times.iteritems()}
+
+    yaml.dump({'start': dict(_current_dataset_start_times),
+               'stop': dict(_current_dataset_stop_times),
+               'duration': durations},
+              open(os.path.join(_current_dataset, 'TIMES'), 'w'))
 
     if successful:
         yaml.dump(datetime.datetime.now(),

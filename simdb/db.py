@@ -32,6 +32,8 @@ import logging
 import os
 import shutil
 import textwrap
+
+import numpy as np
 import yaml
 
 logger = logging.getLogger('simdb')
@@ -119,6 +121,37 @@ class Dataset(object):
         self._d = self.DataDict()
         self._d.__dict__ = self._data
         return self._d
+
+    @property
+    def t(self):
+        if self._deleted:
+            raise ValueError('Dataset has been deleted')
+        if hasattr(self, '_t'):
+            return self._t
+
+        if not self.finished:
+            if self.failed:
+                logger.warn('Loading data of failed dataset {}.'.format(self.name))
+            else:
+                if os.path.exists(os.path.join(self.path, 'TIMES')):
+                    logger.warn('Loading data of unfinished dataset {}.'.format(self.name))
+                else:
+                    raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
+
+        self._times = {k: np.array(v)
+                       for k, v in yaml.load(open(os.path.join(self.path, 'TIMES')))['duration'].iteritems()}
+
+        self._t = self.DataDict()
+        self._t.__dict__ = self._times
+        return self._t
+
+    def unload_data(self):
+        if hasattr(self, '_d'):
+            del self._d
+            del self._data
+        if hasattr(self, '_t'):
+            del self._t
+            del self._times
 
     def delete(self):
         if self._deleted:

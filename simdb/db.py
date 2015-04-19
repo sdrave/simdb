@@ -145,6 +145,10 @@ class Dataset(object):
         self._t.__dict__ = self._times
         return self._t
 
+    @property
+    def host(self):
+        return self.name.split('-')[-1]
+
     def unload_data(self):
         if hasattr(self, '_d'):
             del self._d

@@ -42,7 +42,7 @@ import yaml
 from simdb.db import DataLoader
 
 
-STRIP_FROM_ENV = ['PS1',]
+STRIP_FROM_ENV = ['PS1']
 
 
 # Customize YAML serialization
@@ -120,10 +120,7 @@ def _initialize():
         os.mkdir(os.path.join(db_path, 'RUNS'))
     uid = _make_uid(os.path.join(db_path, 'RUNS'))
     os.mkdir(os.path.join(db_path, 'RUNS', uid))
-    env = dict(os.environ)
-    for kk in STRIP_FROM_ENV:
-        if env.has_key(kk):
-            env.pop(kk)
+    env = {k: v for k, v in os.environ.items() if k not in STRIP_FROM_ENV}
     yaml.dump(dict(script=script,
                    argv=argv,
                    host=host,

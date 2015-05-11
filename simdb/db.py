@@ -26,7 +26,7 @@ from __future__ import absolute_import, division, print_function
 
 from cPickle import dumps, load
 
-import glob
+import fnmatch
 import itertools
 import logging
 import os
@@ -323,8 +323,8 @@ class SimulationDatabase(object):
         self.experiments = sorted(set(s.split('-')[0] for s in os.listdir(os.path.join(db_path, 'DATA'))))
 
     def select(self, pattern, *args, **kwargs):
-        pattern = '*' + pattern + '*'
-        paths = sorted(glob.glob(os.path.join(self.db_path, 'DATA', pattern)))
+        paths = sorted(os.path.join(self.db_path, 'DATA', fn) for fn in os.listdir(os.path.join(self.db_path, 'DATA'))
+                       if fnmatch.fnmatch(fn.split('-')[0], pattern))
         ds = DatasetCollection(map(Dataset, paths))
         if args or kwargs:
             return ds.select(*args, **kwargs)

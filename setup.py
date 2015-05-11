@@ -22,5 +22,5 @@ setup(
         'Programming Language :: Python :: 2.7',
     ],
     keywords='simulation data numerics reproducibility',
-    install_requires = ['pyyaml', 'numpy', 'sh'],
+    install_requires = ['pyyaml', 'numpy'],
 )

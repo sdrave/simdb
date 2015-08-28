@@ -116,6 +116,8 @@ def _initialize():
     host = os.uname()
     started = datetime.datetime.now()
 
+    if not os.path.exists(db_path):
+        os.mkdir(db_path)
     if not os.path.exists(os.path.join(db_path, 'RUNS')):
         os.mkdir(os.path.join(db_path, 'RUNS'))
     uid = _make_uid(os.path.join(db_path, 'RUNS'))

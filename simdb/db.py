@@ -320,6 +320,11 @@ class SimulationDatabase(object):
         if not db_path:
             db_path = os.environ['SIMDB_PATH']
         self.db_path = db_path
+        if not os.path.exists(db_path):
+            os.mkdir(db_path)
+        if not os.path.exists(os.path.join(db_path, 'DATA')):
+            os.mkdir(os.path.join(db_path, 'DATA'))
+
         self.experiments = sorted(set(s.split('-')[0] for s in os.listdir(os.path.join(db_path, 'DATA'))))
 
     def select(self, pattern, *args, **kwargs):

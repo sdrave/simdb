@@ -199,7 +199,7 @@ def add_data(**new_data):
 
     def dump_file(k, v):
         filename = 'DATA.' + k + '.0'
-        dump(v, open(os.path.join(_current_dataset, filename), 'w'))
+        dump(v, open(os.path.join(_current_dataset, filename), 'w'), protocol=-1)
         return filename
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}
@@ -221,7 +221,7 @@ def append_data(**new_data):
         else:
             count = len(data[k])
         filename = 'DATA.' + k + '.' + str(count)
-        dump(v, open(os.path.join(_current_dataset, filename), 'w'))
+        dump(v, open(os.path.join(_current_dataset, filename), 'w'), protocol=-1)
         return filename
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}

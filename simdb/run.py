@@ -24,12 +24,21 @@
 
 from __future__ import absolute_import, division, print_function
 
+import sys
+PY2 = sys.version_info.major == 2
+
 import atexit
 from collections import defaultdict
-from cPickle import dump
+try:
+    from cPickle import dump
+except ImportError:
+    from pickle import dump
 import datetime
 import os
-from itertools import izip_longest
+if PY2:
+    from itertools import izip_longest as zip_longest
+else:
+    from itertools import zip_longest
 import socket
 import sys
 import time
@@ -71,7 +80,8 @@ def str_representer(dumper, data):
 
 yaml.add_representer(np.ndarray, ndarray_representer)
 yaml.add_representer(np.float64, numpy_scalar_representer)
-yaml.add_representer(unicode, unicode_representer)
+if PY2:
+    yaml.add_representer(unicode, unicode_representer)
 yaml.add_representer(str, str_representer)
 
 
@@ -108,9 +118,9 @@ def _initialize():
     except AttributeError:
         script = 'from console'
     try:
-        script_content = open(__main__.__file__, 'r').read()
+        script_content = open(__main__.__file__, 'rb').read()
     except AttributeError:
-        script_content = ''
+        script_content = b''
     argv = sys.argv
 
     host = os.uname()
@@ -129,9 +139,9 @@ def _initialize():
                    git=git_info,
                    started=started,
                    environment=env),
-              open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'w'),
+              open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'wt'),
               allow_unicode=True)
-    with open(os.path.join(db_path, 'RUNS', uid, 'SCRIPT'), 'w') as f:
+    with open(os.path.join(db_path, 'RUNS', uid, 'SCRIPT'), 'wb') as f:
         f.write(script_content)
     _run = uid
     _db_path = db_path
@@ -164,7 +174,7 @@ def new_dataset(experiment, auto_flush=False, **params):
                'comment': '',
                'tags': [],
                'protected': False},
-               open(os.path.join(_current_dataset, 'INFO'), 'w'))
+               open(os.path.join(_current_dataset, 'INFO'), 'wt'))
     os.symlink(os.path.join('..', '..', 'RUNS', _run),
                os.path.join(_current_dataset, 'RUN'))
     os.symlink(os.path.join('..', '..', 'DATA', uid),
@@ -182,7 +192,7 @@ def append_values(**new_data):
     if not _current_dataset:
         raise ValueError('no data set created')
     data = _current_dataset_data
-    for k, v in new_data.iteritems():
+    for k, v in new_data.items():
         v = _to_list(v)
         if k not in data:
             data[k] = [v]
@@ -199,10 +209,10 @@ def add_data(**new_data):
 
     def dump_file(k, v):
         filename = 'DATA.' + k + '.0'
-        dump(v, open(os.path.join(_current_dataset, filename), 'w'), protocol=-1)
+        dump(v, open(os.path.join(_current_dataset, filename), 'wb'), protocol=-1)
         return filename
 
-    new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}
+    new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.items()}
     add_values(**new_data)
 
 
@@ -221,10 +231,10 @@ def append_data(**new_data):
         else:
             count = len(data[k])
         filename = 'DATA.' + k + '.' + str(count)
-        dump(v, open(os.path.join(_current_dataset, filename), 'w'), protocol=-1)
+        dump(v, open(os.path.join(_current_dataset, filename), 'wb'), protocol=-1)
         return filename
 
-    new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.iteritems()}
+    new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.items()}
     append_values(**new_data)
 
 
@@ -270,10 +280,10 @@ def _write_data(successful):
                 return a
         return v
 
-    data = {k: process_data(v) for k, v in _current_dataset_data.iteritems()}
+    data = {k: process_data(v) for k, v in _current_dataset_data.items()}
 
     dump(data,
-         open(os.path.join(_current_dataset, 'DATA'), 'w'),
+         open(os.path.join(_current_dataset, 'DATA'), 'wb'),
          protocol=-1)
 
     def get_metadata(v):
@@ -308,20 +318,20 @@ def _write_data(successful):
         else:
             return type(v).__name__
 
-    yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.iteritems()},
-              open(os.path.join(_current_dataset, 'INDEX'), 'w'))
+    yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.items()},
+              open(os.path.join(_current_dataset, 'INDEX'), 'wt'))
 
-    durations = {k: [stop - start for start, stop in izip_longest(v, _current_dataset_stop_times[k], fillvalue=0)]
-                 for k, v in _current_dataset_start_times.iteritems()}
+    durations = {k: [stop - start for start, stop in zip_longest(v, _current_dataset_stop_times[k], fillvalue=0)]
+                 for k, v in _current_dataset_start_times.items()}
 
     yaml.dump({'start': dict(_current_dataset_start_times),
                'stop': dict(_current_dataset_stop_times),
                'duration': durations},
-              open(os.path.join(_current_dataset, 'TIMES'), 'w'))
+              open(os.path.join(_current_dataset, 'TIMES'), 'wt'))
 
     if successful:
         yaml.dump(datetime.datetime.now(),
-                  open(os.path.join(_current_dataset, 'FINISHED'), 'w'))
+                  open(os.path.join(_current_dataset, 'FINISHED'), 'wt'))
 
 
 def _check_dataset_keys(new_keys):
@@ -376,7 +386,7 @@ def _excepthook(exc_type, exc_val, exc_tb):
             yaml.dump({'time': finished,
                        'why': repr(exc_val),
                        'traceback': traceback.extract_tb(exc_tb)},
-                      open(filename, 'w'))
+                      open(filename, 'wt'))
 
         if _current_dataset:
             _write_data(successful=False)
@@ -396,6 +406,6 @@ def _exit_hook():
         if _current_dataset:
             _write_data(successful=True)
             yaml.dump(finished,
-                      open(os.path.join(_current_dataset, 'FINISHED'), 'w'))
+                      open(os.path.join(_current_dataset, 'FINISHED'), 'wt'))
         yaml.dump(finished,
-                  open(os.path.join(_db_path, 'RUNS', _run, 'FINISHED'), 'w'))
+                  open(os.path.join(_db_path, 'RUNS', _run, 'FINISHED'), 'wt'))

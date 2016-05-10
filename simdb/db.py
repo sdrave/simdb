@@ -24,7 +24,13 @@
 
 from __future__ import absolute_import, division, print_function
 
-from cPickle import dumps, load
+import sys
+PY2 = sys.version_info.major == 2
+
+try:
+    from cPickle import dumps, load
+except ImportError:
+    from pickle import dumps, load
 
 import fnmatch
 import itertools
@@ -45,7 +51,15 @@ class DataLoader(object):
         self.filename = filename
 
     def __call__(self):
-        return load(open(self.filename))
+        if PY2:
+            return load(open(self.filename, 'rb'))
+        else:
+            try:
+                return load(open(self.filename, 'rb'))
+            except UnicodeDecodeError:
+                # this happens when loading numpy arrays which have been
+                # pickled with Python 2
+                return load(open(self.filename, 'rb'), encoding='latin-1')
 
 
 class Dataset(object):
@@ -66,12 +80,12 @@ class Dataset(object):
             return self.__dict__
 
         def __repr__(self):
-            return ', '.join(str(k) + ': ' + str(v) for k, v in sorted(self.dict.iteritems()))
+            return ', '.join(str(k) + ': ' + str(v) for k, v in sorted(self.dict.items()))
 
     def __init__(self, path):
         self.path = path
 
-        info = yaml.load(open(os.path.join(path, 'INFO')))
+        info = yaml.load(open(os.path.join(path, 'INFO'), 'rt'))
         self._params = info.pop('parameters')
         self.p = self.DataDict()
         self.p.__dict__ = self._params
@@ -80,11 +94,11 @@ class Dataset(object):
 
         self.failed = False
         if os.path.exists(os.path.join(path, 'FINISHED')):
-            self.finished = yaml.load(open(os.path.join(path, 'FINISHED')))
+            self.finished = yaml.load(open(os.path.join(path, 'FINISHED'), 'rt'))
         else:
             self.finished = False
             if os.path.exists(os.path.join(path, 'FAILED')):
-                self.failed = yaml.load(open(os.path.join(path, 'FAILED')))
+                self.failed = yaml.load(open(os.path.join(path, 'FAILED'), 'rt'))
 
         self._locked = True
         self._deleted = False
@@ -108,9 +122,16 @@ class Dataset(object):
                     logger.warn('Loading data of unfinished dataset {}.'.format(self.name))
                 else:
                     raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
-
-        self._data = load(open(os.path.join(self.path, 'DATA')))
-        for v in self._data.itervalues():
+        if PY2:
+            self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'))
+        else:
+            try:
+                self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'))
+            except UnicodeDecodeError:
+                # this happens when loading numpy arrays which have been
+                # pickled with Python 2
+                self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'), encoding='latin-1')
+        for v in self._data.values():
             if isinstance(v, DataLoader):
                 v.filename = os.path.join(self.path, v.filename)
             elif isinstance(v, list):
@@ -139,7 +160,7 @@ class Dataset(object):
                     raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
 
         self._times = {k: np.array(v)
-                       for k, v in yaml.load(open(os.path.join(self.path, 'TIMES')))['duration'].iteritems()}
+                       for k, v in yaml.load(open(os.path.join(self.path, 'TIMES'), 'rt'))['duration'].items()}
 
         self._t = self.DataDict()
         self._t.__dict__ = self._times
@@ -181,7 +202,7 @@ class Dataset(object):
         data['tags'] = list(sorted(self.tags))
 
         yaml.dump(data,
-                  open(os.path.join(self.path, 'INFO'), 'w'))
+                  open(os.path.join(self.path, 'INFO'), 'wt'))
 
     def __setattr__(self, k, v):
         if not hasattr(self, '_locked'):
@@ -200,7 +221,7 @@ class Dataset(object):
                 self._update_info()
 
     def __str__(self):
-        params = '\n'.join(textwrap.wrap(', '.join('{}={}'.format(k, v) for k, v in sorted(self.p.dict.iteritems())),
+        params = '\n'.join(textwrap.wrap(', '.join('{}={}'.format(k, v) for k, v in sorted(self.p.dict.items())),
                                          initial_indent=' '*10, subsequent_indent=' '*10, width=100))
         s = '{} {}'.format(self.name,
                            '✓' if self.finished else '✗' if self.failed else '?')
@@ -228,13 +249,13 @@ class DatasetCollection(object):
             if failed is not None and bool(ds.failed) != failed:
                 return False
             try:
-                for k, v in kwargs.iteritems():
+                for k, v in kwargs.items():
                     if ds.p.dict[k] != v:
                         return False
                 return all(f(ds) for f in args)
             except:
                 return False
-        return DatasetCollection(filter(selector, self.datasets))
+        return DatasetCollection(list(filter(selector, self.datasets)))
 
     def select_unique(self, *args, **kwargs):
         ds = self.select(*args, **kwargs)
@@ -266,7 +287,7 @@ class DatasetCollection(object):
                                        key=keyfunc)
         else:
             keyfunc = lambda ds: (ds.experiment,
-                                  list(sorted((k, dumps(v, protocol=-1)) for k, v in ds.p.dict.iteritems())))
+                                  list(sorted((k, dumps(v, protocol=-1)) for k, v in ds.p.dict.items())))
             groups = itertools.groupby(sorted(self.datasets, key=keyfunc), key=keyfunc)
 
         def get_duplicates(groups):
@@ -283,7 +304,7 @@ class DatasetCollection(object):
                 formatter = lambda i, ds: ('experiment: ' + i['experiment'] + '\n' +
                                            'params:     ' +
                                            '\n'.join(textwrap.wrap(', '.join('{}={}'.format(k, v)
-                                                                   for k, v in sorted(i['params'].iteritems())),
+                                                                   for k, v in sorted(i['params'].items())),
                                                                    initial_indent='',
                                                                    subsequent_indent=' ' * len('experiment: '),
                                                                    width=100)) + '\n' +
@@ -330,7 +351,7 @@ class SimulationDatabase(object):
     def select(self, pattern, *args, **kwargs):
         paths = sorted(os.path.join(self.db_path, 'DATA', fn) for fn in os.listdir(os.path.join(self.db_path, 'DATA'))
                        if fnmatch.fnmatch(fn.split('-')[0], pattern))
-        ds = DatasetCollection(map(Dataset, paths))
+        ds = DatasetCollection(list(map(Dataset, paths)))
         if args or kwargs:
             return ds.select(*args, **kwargs)
         else:

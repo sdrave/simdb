@@ -230,8 +230,7 @@ class Dataset(object):
         s += '\n' + params
         return s
 
-    def __repr__(self):
-        return "Dataset('{}')".format(self.path)
+    __repr__ = __str__
 
 
 class DatasetCollection(object):

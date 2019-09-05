@@ -52,14 +52,17 @@ class DataLoader(object):
 
     def __call__(self):
         if PY2:
-            return load(open(self.filename, 'rb'))
+            with open(self.filename, 'rb') as f:
+                return load(f)
         else:
             try:
-                return load(open(self.filename, 'rb'))
+                with open(self.filename, 'rb') as f:
+                    return load(f)
             except UnicodeDecodeError:
                 # this happens when loading numpy arrays which have been
                 # pickled with Python 2
-                return load(open(self.filename, 'rb'), encoding='latin-1')
+                with open(self.filename, 'rb') as f:
+                    return load(f, encoding='latin-1')
 
 
 class Dataset(object):
@@ -85,7 +88,8 @@ class Dataset(object):
     def __init__(self, path):
         self.path = path
 
-        info = yaml.load(open(os.path.join(path, 'INFO'), 'rt'))
+        with open(os.path.join(path, 'INFO'), 'rt') as f:
+            info = yaml.load(f)
         self._params = info.pop('parameters')
         self.p = self.DataDict()
         self.p.__dict__ = self._params
@@ -94,11 +98,13 @@ class Dataset(object):
 
         self.failed = False
         if os.path.exists(os.path.join(path, 'FINISHED')):
-            self.finished = yaml.load(open(os.path.join(path, 'FINISHED'), 'rt'))
+            with open(os.path.join(path, 'FINISHED'), 'rt') as f:
+                self.finished = yaml.load(f)
         else:
             self.finished = False
             if os.path.exists(os.path.join(path, 'FAILED')):
-                self.failed = yaml.load(open(os.path.join(path, 'FAILED'), 'rt'))
+                with open(os.path.join(path, 'FAILED'), 'rt') as f:
+                    self.failed = yaml.load(f)
 
         self._locked = True
         self._deleted = False
@@ -123,14 +129,17 @@ class Dataset(object):
                 else:
                     raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
         if PY2:
-            self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'))
+            with open(os.path.join(self.path, 'DATA'), 'rb') as f:
+                self._data = load(f)
         else:
             try:
-                self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'))
+                with open(os.path.join(self.path, 'DATA'), 'rb') as f:
+                    self._data = load(f)
             except UnicodeDecodeError:
                 # this happens when loading numpy arrays which have been
                 # pickled with Python 2
-                self._data = load(open(os.path.join(self.path, 'DATA'), 'rb'), encoding='latin-1')
+                with open(os.path.join(self.path, 'DATA'), 'rb') as f:
+                    self._data = load(f, encoding='latin-1')
         for v in self._data.values():
             if isinstance(v, DataLoader):
                 v.filename = os.path.join(self.path, v.filename)
@@ -159,8 +168,9 @@ class Dataset(object):
                 else:
                     raise ValueError('No data has been written to unfinished dataset {}.'.format(self.name))
 
-        self._times = {k: np.array(v)
-                       for k, v in yaml.load(open(os.path.join(self.path, 'TIMES'), 'rt'))['duration'].items()}
+        with open(os.path.join(self.path, 'TIMES'), 'rt') as f:
+            self._times = {k: np.array(v)
+                           for k, v in yaml.load(f)['duration'].items()}
 
         self._t = self.DataDict()
         self._t.__dict__ = self._times

@@ -201,8 +201,8 @@ class Dataset(object):
         data['parameters'] = self.p.dict
         data['tags'] = list(sorted(self.tags))
 
-        yaml.dump(data,
-                  open(os.path.join(self.path, 'INFO'), 'wt'))
+        with open(os.path.join(self.path, 'INFO'), 'wt') as f:
+            yaml.dump(data, f)
 
     def __setattr__(self, k, v):
         if not hasattr(self, '_locked'):

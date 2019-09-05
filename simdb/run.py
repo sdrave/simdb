@@ -118,7 +118,8 @@ def _initialize():
     except AttributeError:
         script = 'from console'
     try:
-        script_content = open(__main__.__file__, 'rb').read()
+        with open(__main__.__file__, 'rb') as f:
+            script_content = f.read()
     except AttributeError:
         script_content = b''
     argv = sys.argv
@@ -133,14 +134,15 @@ def _initialize():
     uid = _make_uid(os.path.join(db_path, 'RUNS'))
     os.mkdir(os.path.join(db_path, 'RUNS', uid))
     env = {k: v for k, v in os.environ.items() if k not in STRIP_FROM_ENV}
-    yaml.dump(dict(script=script,
-                   argv=argv,
-                   host=host,
-                   git=git_info,
-                   started=started,
-                   environment=env),
-              open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'wt'),
-              allow_unicode=True)
+    with open(os.path.join(db_path, 'RUNS', uid, 'INFO'), 'wt') as f:
+        yaml.dump(dict(script=script,
+                       argv=argv,
+                       host=host,
+                       git=git_info,
+                       started=started,
+                       environment=env),
+                  f,
+                  allow_unicode=True)
     with open(os.path.join(db_path, 'RUNS', uid, 'SCRIPT'), 'wb') as f:
         f.write(script_content)
     _run = uid
@@ -168,13 +170,14 @@ def new_dataset(experiment, auto_flush=False, **params):
     _current_dataset_auto_flush = auto_flush
 
     os.mkdir(_current_dataset)
-    yaml.dump({'experiment': experiment,
-               'started': datetime.datetime.now(),
-               'parameters': params,
-               'comment': '',
-               'tags': [],
-               'protected': False},
-               open(os.path.join(_current_dataset, 'INFO'), 'wt'))
+    with open(os.path.join(_current_dataset, 'INFO'), 'wt') as f:
+        yaml.dump({'experiment': experiment,
+                   'started': datetime.datetime.now(),
+                   'parameters': params,
+                   'comment': '',
+                   'tags': [],
+                   'protected': False},
+                   f)
     os.symlink(os.path.join('..', '..', 'RUNS', _run),
                os.path.join(_current_dataset, 'RUN'))
     os.symlink(os.path.join('..', '..', 'DATA', uid),
@@ -209,7 +212,8 @@ def add_data(**new_data):
 
     def dump_file(k, v):
         filename = 'DATA.' + k + '.0'
-        dump(v, open(os.path.join(_current_dataset, filename), 'wb'), protocol=-1)
+        with open(os.path.join(_current_dataset, filename), 'wb') as f:
+            dump(v, f, protocol=-1)
         return filename
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.items()}
@@ -231,7 +235,8 @@ def append_data(**new_data):
         else:
             count = len(data[k])
         filename = 'DATA.' + k + '.' + str(count)
-        dump(v, open(os.path.join(_current_dataset, filename), 'wb'), protocol=-1)
+        with open(os.path.join(_current_dataset, filename), 'wb') as f:
+            dump(v, f, protocol=-1)
         return filename
 
     new_data = {k: DataLoader(dump_file(k, v)) for k, v in new_data.items()}
@@ -282,9 +287,8 @@ def _write_data(successful):
 
     data = {k: process_data(v) for k, v in _current_dataset_data.items()}
 
-    dump(data,
-         open(os.path.join(_current_dataset, 'DATA'), 'wb'),
-         protocol=-1)
+    with open(os.path.join(_current_dataset, 'DATA'), 'wb') as f:
+        dump(data, f, protocol=-1)
 
     def get_metadata(v):
         if isinstance(v, np.ndarray):
@@ -318,20 +322,21 @@ def _write_data(successful):
         else:
             return type(v).__name__
 
-    yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.items()},
-              open(os.path.join(_current_dataset, 'INDEX'), 'wt'))
+    with open(os.path.join(_current_dataset, 'INDEX'), 'wt') as f:
+        yaml.dump({k: get_metadata(v) for k, v in _current_dataset_data.items()}, f)
 
     durations = {k: [stop - start for start, stop in zip_longest(v, _current_dataset_stop_times[k], fillvalue=0)]
                  for k, v in _current_dataset_start_times.items()}
 
-    yaml.dump({'start': dict(_current_dataset_start_times),
-               'stop': dict(_current_dataset_stop_times),
-               'duration': durations},
-              open(os.path.join(_current_dataset, 'TIMES'), 'wt'))
+    with open(os.path.join(_current_dataset, 'TIMES'), 'wt') as f:
+        yaml.dump({'start': dict(_current_dataset_start_times),
+                   'stop': dict(_current_dataset_stop_times),
+                   'duration': durations},
+                  f)
 
     if successful:
-        yaml.dump(datetime.datetime.now(),
-                  open(os.path.join(_current_dataset, 'FINISHED'), 'wt'))
+        with open(os.path.join(_current_dataset, 'FINISHED'), 'wt') as f:
+            yaml.dump(datetime.datetime.now(), f)
 
 
 def _check_dataset_keys(new_keys):
@@ -383,10 +388,11 @@ def _excepthook(exc_type, exc_val, exc_tb):
     if _run:
         finished = datetime.datetime.now()
         def dump_failed(filename):
-            yaml.dump({'time': finished,
-                       'why': repr(exc_val),
-                       'traceback': traceback.extract_tb(exc_tb)},
-                      open(filename, 'wt'))
+            with open(filename, 'wt') as f:
+                yaml.dump({'time': finished,
+                           'why': repr(exc_val),
+                           'traceback': traceback.extract_tb(exc_tb)},
+                          f)
 
         if _current_dataset:
             _write_data(successful=False)
@@ -405,7 +411,7 @@ def _exit_hook():
         finished = datetime.datetime.now()
         if _current_dataset:
             _write_data(successful=True)
-            yaml.dump(finished,
-                      open(os.path.join(_current_dataset, 'FINISHED'), 'wt'))
-        yaml.dump(finished,
-                  open(os.path.join(_db_path, 'RUNS', _run, 'FINISHED'), 'wt'))
+            with open(os.path.join(_current_dataset, 'FINISHED'), 'wt') as f:
+                yaml.dump(finished, f)
+        with open(os.path.join(_db_path, 'RUNS', _run, 'FINISHED'), 'wt') as f:
+            yaml.dump(finished, f)
